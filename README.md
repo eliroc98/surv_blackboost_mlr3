@@ -6,19 +6,15 @@ The function `surv.blackboost` from the package `mlr3extralearners` implements a
 We can start off by installing all the required packages:
 
 ``` r
-{
 install.packages(c("mlr3", "mlr3extralearners", "mlr3tuning", "mlr3proba", "mlr3pipelines", mlr3misc", "survivalmodels", "mboost", "paradox", "parallell", "stabs", ))
-}
 ```
 ___
 
 Before moving on with the next topic, let us dive deeper in the functionality of blackboost by taking a look at its parameters and their respective default values:
 
 ``` r 
-{
 install_learners('surv.blackboost')
 learner = lrn("surv.blackboost")
 learner$param_set
-}
 ```
 ___
