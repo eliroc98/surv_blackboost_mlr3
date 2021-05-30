@@ -1,0 +1,158 @@
+---
+title: "Survival Analysis with mlr3's Blackboost"
+author: "Andrea Cutrera, Sonia Petrini, Elisabetta Rocchetti, Ruben Popper"
+date: "5/28/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(survivalmodels)
+library(mlr3proba); library(mlr3); library(survival)
+library(mlr3misc)
+library(survival)
+library(mboost)
+library(mlr3learners)
+library(mlr3extralearners)
+```
+
+## Dataset
+
+The aim of this report is to perform Survival Analysis on the German Breast Cancer Study (GBCS) Dataset from Hosmer et al. 
+The machine learning tool that will be implemented is the mlr3 extra learner "surv.blackboost" (documentation available at: [mlr_learners_surv.blackboost](https://rdrr.io/github/mlr-org/mlr3extralearners/man/mlr_learners_surv.blackboost.html)), 
+which combines a CART algorithm with Gradient Boosting.
+
+This method calls blackboost from the mboost package 
+
+
+
+The structure of the data is the following:
+  - observations: 686 - patients with primary node positive breast cancer.
+  - variables: 16 - biological factors concerning patients and tumor severity.
+  
+The Survival Analysis' dimensions are stored in these variables:
+  - censdead: Censoring status. 1 = Death. 0 = Censored.
+  - survtime: Time to death (days).
+  
+
+  
+
+  
+  
+
+```{r}
+description <- c("Identification Code.","Date of diagnosis.","Date of recurrence free survival.","Date of death.","Age at diagnosis (years).",
+           "Menopausal status. 1 = Yes, 0 = No.", "Hormone therapy. 1 = Yes. 0 = No.","Tumor size (mm).","Tumor grade (1-3).","Number of nodes.",
+           "Number of progesterone receptors.","Number of estrogen receptors.","Time to recurrence (days).","Recurrence status. 1 = Recurrence. 0 = Censored.", "Time to death (days).", "Censoring status. 1 = Death. 0 = Censored.")
+data.frame("variable" = colnames(gbcs),description)
+```
+
+
+
+```{r cars}
+#load dataset
+gbcs <- mlr3proba::gbcs
+#select relevant variables 
+gbcs <- gbcs[,c(5:12,15:16)]
+summarytools::dfSummary(gbcs, 
+                        graph.col = F, 
+                        valid.col = F
+)
+```
+## surv_blackboost_mlr3 
+
+The function `surv.blackboost` implements a gradient boosting algorithm that can be fitted for censored data. Similarly to other packages, blackboost implements the classical algorithm with regression trees as base learners. The peculiarity of blackboost is the possibility to change the default loss function to be optimized for the terminal regions of each tree. Blackboost allows to do so either by specifying a custom loss function or by selecting a pre-existing one under the `family` argument. Moreover, the performances of the model can be implemented further by specifying a variety of tree controls. In fact, blackboost relies on `partykit::ctree`, which offers a wide range of parameters for conditional inference trees. You can type `args(partykit::ctree_control)` for more details on the tree controls parameters.
+
+`mlr3` offers an intuitive and interconnected set of extension packages that we are going to use with respect to different aspects of this explanatory project.
+We can start off by installing all the required packages:
+
+``` {r, eval=FALSE}
+install.packages(c("mlr3", "mlr3learners", "mlr3extralearners", "mlr3tuning", "mlr3proba", "mlr3pipelines", "mlr3misc", "survivalmodels", "mboost", "paradox", "parallell", "stabs"), repos = "http://cran.us.r-project.org")
+```
+___
+
+### Packages Overview
+Let us briefly discuss the role of some of the packages in *mlr3*. `mlr3learners` and `mlr3extralearners` include a collection of machine learning algorithms to perform classification, regression, clustering, density clustering and survival analysis task (available at [mlr3learners](https://mlr3extralearners.mlr-org.com/articles/learners/list_learners.html)). In order to tell R what type of data we are dealing with we use `mlr3proba`. This package facilitates our job in many ways, since it allows us to collect datasets in tasks of which it recognizes the main features. After importing and preprocessing our datasets, we can set `TaskSurv` in order to let R consider censored observation (more code examples are provided below). Moving on to the configuration of our algorithm, we use `paradox` and `mlr3tuning` for tuning the parameters of the tree and of the boosting procedure. The former is an intuitive reference-based objects tool for the specification of the parameter set. `mlr3tuning` takes this object and defines a space where we can optimize our parameters in line with our "searching" criteria.
+
+Before moving on with the next topic, let us dive deeper in the functionality of blackboost by taking a look at its parameters and their respective default values:
+
+```{r, echo=FALSE} 
+library(mlr3extralearners)
+library(mlr3proba)
+library(mlr3tuning)
+library(paradox)
+install_learners('surv.blackboost')
+learner = lrn("surv.blackboost")
+learner$param_set$ids()
+```
+___
+
+
+##Tuning Parameters
+Before fitting out model to the training data, we compare different specifications of the hyperparameters that we believe can improve the predictive performance of our model. We define a *tuning instance* that we will later feed to the optimization algorithm of our choice. We  specify the dataset (or a *task* according to `mlr3proba` notation) on which tuning has to be performed, the *learner* that we are using and the *search space*, which includes lower and upper bounds for out hyperparameters. Next, we need to indicate the *measure* and the *resampling* strategy according to which the performance of our model needs to be evaluated. Finally, we impose a *Terminator* or a budget representing the criterium according to which the optimization algorithm will stop.
+
+```{r, results='hide'}
+search_space = ps(
+  mstop = p_int(lower = 70, upper = 130),
+  nu = p_dbl(lower = 0.01, upper = 0.1),
+  maxdepth = p_int(lower = 2, upper = 8),
+  stopintern = p_lgl())
+CVstrat = rsmp("cv", folds = 10)
+measure = msr("surv.cindex")
+stagTerm <- trm("stagnation")
+```
+___
+
+Regarding the `terminator` of our algorithm, `mlr3tuning` provides different options:
+-Terminate after a given time (TerminatorClockTime)
+-Terminate after a given amount of iterations (TerminatorEvals)
+-Terminate after a specific performance is reached (TerminatorPerfReached)
+-Terminate when tuning does not improve (TerminatorStagnation)
+-A combination of the above in an ALL or ANY fashion (TerminatorCombo)
+(I must reference it.. it is taken from https://mlr3book.mlr-org.com/tuning.html)
+
+Here we present an example in which we let termination an open choice among Stagnation and Evals:
+
+```{r, results='hide'}
+combo <- trm("combo",
+              list(trm("evals", n_evals = 50),
+                   trm("stagnation")),
+              any = TRUE
+              )
+```
+___
+Let us take a look at what our tuning instance looks like:
+```{r}
+instance = TuningInstanceSingleCrit$new(
+  task = train_task,
+  measure = measure,
+  learner = learner,
+  resampling = CVstrat,
+  search_space = search_space,
+  terminator = combo
+)
+```
+___
+```{r}
+instance
+```
+___
+Finally, we can specify the optimization algorithm to be implemented on the `instance` via the `tuner` class:
+```{r, results='hide'}
+tuner = tnr("random_search")
+tuner$optimize(instance)
+```
+___
+We can now store the results in the `instance` object in order to train our model with the tuned values of the parameters of interest:
+```{r, results='hide'}
+instance$result_learner_param_vals
+}
+```
+
+
+
+
+
+
+
+
