@@ -144,6 +144,22 @@ instance
 tuner = tnr("random_search")
 tuner$optimize(instance)
 
+instance$is_terminated
+#number of optimal stap number
+instance$result_learner_param_vals
+#step number vs harrel_c
+as.data.table(instance$archive)
+
+#train with optimal stepnumber
+learner$param_set$values = instance$result_learner_param_vals
+learner$train(task_gbcs)
+learner$model
+
+prediction = learner.cb$predict(test_gbcs)
+prediction
+prediction$score()
+
+
 #0.7016681 harrel_c (optimized) (vecchio)
 
 # CON RANDOM SEARCH
