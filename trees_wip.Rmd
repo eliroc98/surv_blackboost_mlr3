@@ -81,7 +81,7 @@ Before moving on with the next topic, let us dive deeper in the functionality of
 library(mlr3extralearners)
 install_learners('surv.blackboost')
 learner = lrn("surv.blackboost")
-learner$param_set
+as.data.table(learner$param_set)[,c(1,2,3,4,5,9,10)]
 ```
 ___
 
