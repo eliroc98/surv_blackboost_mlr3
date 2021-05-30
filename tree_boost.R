@@ -111,6 +111,7 @@ prediction$score()
 #GRID-SEARCH for the best params above tested for fun
 
 search_space = ps(
+  family = p_fct(list("cindex","coxph")),
   mstop = p_int(lower = 70, upper = 130),
   nu = p_dbl(lower = 0.01, upper = 0.1),
   maxdepth = p_int(lower = 2, upper = 8),
@@ -152,10 +153,10 @@ as.data.table(instance$archive)
 
 #train with optimal stepnumber
 learner$param_set$values = instance$result_learner_param_vals
-learner$train(task_gbcs)
+learner$train(train_task)
 learner$model
 
-prediction = learner$predict(test_gbcs)
+prediction = learner$predict(test_task)
 prediction
 prediction$score()
 
@@ -170,9 +171,10 @@ prediction$score()
 #surv.harrell_c: 0.7380778
 
 
-#CON GRID SEARCH (PEGGIO)
-#mstop 83
-#nu: 0.1
-#maxdepth: 6
-#stopintern FALSE
-#surv.harrell_c: 0.7373726
+learners <- c(learners, lrns(c("surv.coxph", "surv.blackboost")))
+design <- benchmark_grid(test_task, learners, CVstrat)
+bm <- benchmark(design)
+
+## Aggreggate with Harrell's C
+msrs <- msrs(c("surv.cindex"))
+bm$aggregate(msrs)
