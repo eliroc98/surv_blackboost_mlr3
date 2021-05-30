@@ -155,7 +155,7 @@ learner$param_set$values = instance$result_learner_param_vals
 learner$train(task_gbcs)
 learner$model
 
-prediction = learner.cb$predict(test_gbcs)
+prediction = learner$predict(test_gbcs)
 prediction
 prediction$score()
 
