@@ -60,6 +60,31 @@ summarytools::dfSummary(gbcs,
                         valid.col = F
 )
 ```
+## surv_blackboost_mlr3 
+
+The function `surv.blackboost` implements a gradient boosting algorithm that can be fitted for censored data. Similarly to other packages, blackboost implements the classical algorithm with regression trees as base learners. The peculiarity of blackboost is the possibility to change the default loss function to be optimized for the terminal regions of each tree. Blackboost allows to do so either by specifying a custom loss function or by selecting a pre-existing one under the `family` argument. Moreover, the performances of the model can be implemented further by specifying a variety of tree controls. In fact, blackboost relies on `partykit::ctree`, which offers a wide range of parameters for conditional inference trees. You can type `args(partykit::ctree_control)` for more details on the tree controls parameters.
+
+`mlr3` offers an intuitive and interconnected set of extension packages that we are going to use with respect to different aspects of this explanatory project.
+We can start off by installing all the required packages:
+
+``` {r, eval=FALSE}
+install.packages(c("mlr3", "mlr3learners", "mlr3extralearners", "mlr3tuning", "mlr3proba", "mlr3pipelines", "mlr3misc", "survivalmodels", "mboost", "paradox", "parallell", "stabs"), repos = "http://cran.us.r-project.org")
+```
+___
+
+### Packages Overview
+Let us briefly discuss the role of some of the packages in *mlr3*. `mlr3learners` and `mlr3extralearners` include a collection of machine learning algorithms to perform classification, regression, clustering, density clustering and survival analysis task (available at [mlr3learners](https://mlr3extralearners.mlr-org.com/articles/learners/list_learners.html)). In order to tell R what type of data we are dealing with we use `mlr3proba`. This package facilitates our job in many ways since it allows us to datasets in tasks of which it recognizes the main features. After importing and preprocessing our datasets, we can set `TaskSurv` in order to let R consider censored observation (more code examples are provided below).
+
+Before moving on with the next topic, let us dive deeper in the functionality of blackboost by taking a look at its parameters and their respective default values:
+
+```{r, echo=FALSE} 
+library(mlr3extralearners)
+install_learners('surv.blackboost')
+learner = lrn("surv.blackboost")
+learner$param_set
+```
+___
+
 
 ## Including Plots
 
