@@ -164,8 +164,24 @@ They comprehend both classical boosting parameters and classical learning tree p
 In the following we describe all the parameters which could be tuned in order to get an optimal performance from survival blackboost.\
 We show a subset of all the possible information given by the command `learner$param_set`: here we list id, class (which is important to know in order to correctly specify the parameter class in search spaces, see section "Hyperparameter tuning" below), lower (bound), upper (bound), levels (all possible character values for categorical parameters), default (value) and storage_type (type of parameter).
 
-```{r}
-as.data.table(learner.bb$param_set)
+Notice that the next output is obtained by further processing of `learner.bb$param_set` output. For more details on how to get this exact output, see the raw file.
+```{r eval=FALSE, include=FALSE}
+#here we substitute the list objects stored in levels and default with their string representation to get a better visualization
+
+param_set<-data.frame(levels=list(rep(0,(length(learner.bb$param_set)-1))),default=list(rep(0,(length(learner.bb$param_set)-1))))
+for(i in 1:(length(learner.bb$param_set)-1)){
+  param_set$levels[i] <- paste(learner.bb$param_set$levels[[i]], collapse = ', ')
+  if(length(learner.bb$param_set$default[names(learner.bb$param_set$levels)[i]][[1]])!=0 & typeof(learner.bb$param_set$default[names(learner.bb$param_set$levels)[i]][[1]])!="closure")
+  {
+    param_set$default[i] <- learner.bb$param_set$default[names(learner.bb$param_set$levels)[i]][[1]]
+  }
+  else{
+    param_set$default[i] <- "NA"
+  }
+}
+
+params <- data.frame(class = unname(learner.bb$param_set$class), lower = unname(learner.bb$param_set$lower), unname(learner.bb$param_set$upper), levels = param_set$levels, default = param_set$default)
+params
 ```
 
 Possible parameters are:
