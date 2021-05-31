@@ -150,6 +150,65 @@ learner$param_set$values = instance$result_learner_param_vals
 ```
 
 
+## Benchmarking
+Once the new learner is trained with the optimized parameters, we are of course interested in comparing its performance with both the base blackboosting and the benchmark Cox regression.
+The mlr3 framework provides a convenient way of doing so through the `mlr3benchmark` package, which compares the performance of multiple learners on a common task with the same training and test data.
+
+This package exploits two main functions:
+  - `benchmark_grid()` allows to set up a customized benchmarking design, 
+      composed of a combination of `Task`, `Learner`, and `Resampling` objects.
+  - `benchmark()` performs the benchmarking according to the specified design and returns a <BenchmarkResult>.
+
+___
+First, we define the triplet of objects that will make up the design.
+```{r}
+# learners to evaluate
+learners = c(learner.cox,learner.bb,learner.bb.opt)
+print(learners)
+
+# task with whole dataset
+gbcs_task = TaskSurv$new(id = "gbcs", 
+                         backend = gbcs2, 
+                         time = "survtime", event = "censdead")
+
+# resampling method
+cv3 = rsmps("cv", folds = 3)
+```
+
+___
+Then, we build the benchmark design and pass it to `benchmark()` to implement the benchmarking.
+```{r}
+set.seed(1)
+design <- benchmark_grid(tasks = gbcs_task,
+                         learners = learners,
+                         resamplings = cv3)
+benchmark <- benchmark(design)
+```
+
+___
+We can now specify the performance measures according to which the comparison should be carried out. 
+Here we define two measures, Harrell's C-index on training set and on test set. 
+```{r}
+measures = list(
+  msr("surv.cindex", predict_sets = "train", id = "cindex_train"),
+  msr("surv.cindex", id = "cindex_test")
+)
+```
+Notice that we can state the set on which the measure should be computed only because we passed the `predict_sets = c("train", "test")` argument when building our learners with `lrn()`.
+
+___
+Finally, we can aggregate the cross-validated C-indices, and print a table displaying the test and train results for each learner.
+```{r}
+performance_tab <- benchmark$aggregate(measures)
+print(performance_tab)
+```
+___
+Thanks to the `mlr3viz` package it is also possible to graphically display the benchmarking results.
+```{r}
+library(mlr3viz)
+autoplot(benchmark)
+```
+
 
 
 
