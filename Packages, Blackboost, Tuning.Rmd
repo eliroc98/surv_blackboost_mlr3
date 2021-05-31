@@ -2,7 +2,9 @@
 title: "Survival Analysis with mlr3's Blackboost"
 author: "Andrea Cutrera, Sonia Petrini, Elisabetta Rocchetti, Ruben Popper"
 date: "5/28/2021"
-output: html_document
+output:
+  html_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -16,14 +18,13 @@ library(mlr3learners)
 library(mlr3extralearners)
 ```
 
-## Dataset
+## Introduction
 
-The aim of this report is to perform Survival Analysis on the German Breast Cancer Study (GBCS) Dataset from Hosmer et al. 
+The aim of this project is to perform Survival Analysis on the German Breast Cancer Study (GBCS) Dataset from Hosmer et al.  
 The machine learning tool that will be implemented is the mlr3 extra learner "surv.blackboost" (documentation available at: [mlr_learners_surv.blackboost](https://rdrr.io/github/mlr-org/mlr3extralearners/man/mlr_learners_surv.blackboost.html)), 
 which combines a CART algorithm with Gradient Boosting.
 
-This method calls blackboost from the mboost package 
-
+This method is called blackboost and is included in the mboost package.
 
 
 The structure of the data is the following:
@@ -33,12 +34,9 @@ The structure of the data is the following:
 The Survival Analysis' dimensions are stored in these variables:
   - censdead: Censoring status. 1 = Death. 0 = Censored.
   - survtime: Time to death (days).
-  
 
-  
+## Data Preprocessing
 
-  
-  
 
 ```{r}
 description <- c("Identification Code.","Date of diagnosis.","Date of recurrence free survival.","Date of death.","Age at diagnosis (years).",
@@ -47,6 +45,7 @@ description <- c("Identification Code.","Date of diagnosis.","Date of recurrence
 data.frame("variable" = colnames(gbcs),description)
 ```
 
+Once selected the variables of interest (age, menopause, hormone, size, grades, nodes, prog_recp, estrg_recp survtime and censdead) what we do in our preprocessing phase is the scaling in order to get the same scale in all the variables.
 
 
 ```{r cars}
@@ -59,9 +58,36 @@ summarytools::dfSummary(gbcs,
                         valid.col = F
 )
 ```
+
+
+Once we have our dataset ready, we make the usual random division into train and test set before creating the task for both the sets.
+
+
+```{r}
+set.seed(123)
+train_set = sample(nrow(gbcs), 0.8 * nrow(gbcs))
+test_set = setdiff(seq_len(nrow(gbcs)), train_set)
+
+train_gbcs <- gbcs[train_set, ]
+test_gbcs <- gbcs[test_set, ]
+```
+
+```{r}
+train_task = TaskSurv$new(id = "train_gbcs", 
+                          backend = train_gbcs, 
+                          time = "survtime", 
+                          event = "censdead")
+
+test_task = TaskSurv$new(id = "test_gbcs", 
+                         backend = test_gbcs, 
+                         time = "survtime", 
+                         event = "censdead")
+```
+
+
 ## surv_blackboost_mlr3 
 
-The function `surv.blackboost` implements a gradient boosting algorithm that can be fitted for censored data. Similarly to other packages, blackboost implements the classical algorithm with regression trees as base learners. The peculiarity of blackboost is the possibility to change the default loss function to be optimized for the terminal regions of each tree. Blackboost allows to do so either by specifying a custom loss function or by selecting a pre-existing one under the `family` argument. Moreover, the performances of the model can be implemented further by specifying a variety of tree controls. In fact, blackboost relies on `partykit::ctree`, which offers a wide range of parameters for conditional inference trees. You can type `args(partykit::ctree_control)` for more details on the tree controls parameters.
+The function `surv.blackboost` implements a gradient boosting algorithm that can be fitted for censored data. Similarly to other packages, blackboost implements the classical algorithm with regression tree as base learner. The peculiarity of blackboost is the possibility to change the default loss function to be optimized for the terminal regions of each tree. Blackboost allows to do so either by specifying a custom loss function or by selecting a pre-existing one under the `family` argument. Moreover, the performances of the model can be implemented further by specifying a variety of tree controls. In fact, blackboost relies on `partykit::ctree`, which offers a wide range of parameters for conditional inference trees. You can type `args(partykit::ctree_control)` for more details on the tree controls parameters.
 
 `mlr3` offers an intuitive and interconnected set of extension packages that we are going to use with respect to different aspects of this explanatory project.
 We can start off by installing all the required packages:
@@ -71,7 +97,8 @@ install.packages(c("mlr3", "mlr3learners", "mlr3extralearners", "mlr3tuning", "m
 ```
 ___
 
-### Packages Overview
+## Packages Overview
+
 Let us briefly discuss the role of some of the packages in *mlr3*. `mlr3learners` and `mlr3extralearners` include a collection of machine learning algorithms to perform classification, regression, clustering, density clustering and survival analysis task (available at [mlr3learners](https://mlr3extralearners.mlr-org.com/articles/learners/list_learners.html)). In order to tell R what type of data we are dealing with we use `mlr3proba`. This package facilitates our job in many ways, since it allows us to collect datasets in tasks of which it recognizes the main features. After importing and preprocessing our datasets, we can set `TaskSurv` in order to let R consider censored observation (more code examples are provided below). Moving on to the configuration of our algorithm, we use `paradox` and `mlr3tuning` for tuning the parameters of the tree and of the boosting procedure. The former is an intuitive reference-based objects tool for the specification of the parameter set. `mlr3tuning` takes this object and defines a space where we can optimize our parameters in line with our "searching" criteria.
 
 Before moving on with the next topic, let us dive deeper in the functionality of blackboost by taking a look at its parameters and their respective default values:
