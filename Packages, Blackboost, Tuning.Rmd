@@ -88,6 +88,56 @@ learner$param_set$ids()
 ___
 
 
+# Hyperparameter setup
+Like all the other machine learning algorithms, survival blackboost has its own hyperparameters to tune.
+They comprehend both classical boosting parameters and classical learning tree parameters.
+
+In the following we describe all the parameters needed to be tuned in order to get the optimal performance from survival blackboost.
+We show a subset of all the possible information given by the command `learner$param_set`: here we list id, class (which is important to know in order to correctly specify the parameter class in search spaces, see section "Hyperparameter tuning" below), lower (bound), upper (bound), levels (all possible character value for categorical parameters), default (value) and storage_type (type of parameter).
+
+```{r eval=FALSE, include=FALSE}
+param_set<-data.frame(levels=list(rep(0,(length(learner$param_set)-1))),default=list(rep(0,(length(learner$param_set)-1))))
+for(i in 1:(length(learner$param_set)-1)){
+  param_set$levels[i] <- paste(learner$param_set$levels[[i]], collapse = ', ')
+  if(length(learner$param_set$default[names(learner$param_set$levels)[i]][[1]])!=0)
+  {
+    param_set$default[i] <- learner$param_set$default[names(learner$param_set$levels)[i]][[1]]
+  }
+  else{
+    param_set$default[i] <- "NA"
+  }
+}
+
+params <- data.frame(class = unname(learner$param_set$class), lower = unname(learner$param_set$lower), unname(learner$param_set$upper), levels = param_set$levels, default = param_set$default)
+params
+```
+
+
+In particular, we focus on the following parameters:
+- `family` is a symbolic description of the loss function and corresponding risk functions to be optimized by blackboost [default: coxph].
+- `mstop` is an integer giving the number of initial boosting iterations. If mstop = 0, the offset model is returned (in our case, a tree is returned) [default: 100].
+- `nu` is a double (between 0 and 1) defining the step size or shrinkage parameter [default: 0.1].
+- `stopintern` is a logical that defines if the boosting algorithm stops internally when the outof-bag risk in one iteration is larger than the out-of-bag risk in the iteration before. Can also be a positive number giving the risk difference that needs to be exceeded [default: FALSE].
+- `maxdepth` is the maximum depth of the tree [default: Inf]. 
+- `trace` is a logical triggering printout of status information during the fitting process; it is just for printing out information [default: FALSE].
+
+In order to set the learner parameters it is necessary to use the following specification, changing "..." with the wanted value.
+
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+learner$param_set$values <- list(family = ..., 
+                                 mstop = ..., 
+                                 nu = ..., 
+                                 stopintern = ...,
+                                 trace = ..., 
+                                 maxdepth = ...)
+```
+
+If one is interested in setting other parameters we don't cover in this tutorial, we suggest to check these CRAN documentations:
+- blackboost parameters: https://cran.r-project.org/web/packages/mboost/mboost.pdf under "blackboost" section;
+- boosting parameters: https://cran.r-project.org/web/packages/mboost/mboost.pdf under "boost_control" section;
+- tree parameters: https://cran.r-project.org/web/packages/partykit/partykit.pdf under "ctree_controls" section.
+Please notice that these documentations do not refer directly to blackboost learner parameters, but they give an idea on what the parameter represents and on how to tune it correctly.
+
 ##Tuning Parameters
 Before fitting out model to the training data, we compare different specifications of the hyperparameters that we believe can improve the predictive performance of our model. We define a *tuning instance* that we will later feed to the optimization algorithm of our choice. We  specify the dataset (or a *task* according to `mlr3proba` notation) on which tuning has to be performed, the *learner* that we are using and the *search space*, which includes lower and upper bounds for out hyperparameters. Next, we need to indicate the *measure* and the *resampling* strategy according to which the performance of our model needs to be evaluated. Finally, we impose a *Terminator* or a budget representing the criterium according to which the optimization algorithm will stop.
 
