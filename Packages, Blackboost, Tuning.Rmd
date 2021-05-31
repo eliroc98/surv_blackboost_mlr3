@@ -146,7 +146,7 @@ ___
 We can now store the results in the `instance` object in order to train our model with the tuned values of the parameters of interest:
 ```{r, results='hide'}
 instance$result_learner_param_vals
-}
+learner$param_set$values = instance$result_learner_param_vals
 ```
 
 
