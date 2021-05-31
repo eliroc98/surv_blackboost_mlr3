@@ -53,12 +53,37 @@ data.frame("variable" = colnames(gbcs),description)
 #load dataset
 gbcs <- mlr3proba::gbcs
 #select relevant variables 
-gbcs <- gbcs[,c(5:12,15:16)]
+gbcs2 <- gbcs[,c(5:12,15:16)]
 summarytools::dfSummary(gbcs, 
                         graph.col = F, 
                         valid.col = F
 )
 ```
+
+In order to use this dataset in our next processes, we need to split it into train set and test set.
+```{r}
+set.seed(123)
+train_set = sample(nrow(gbcs2), 0.8 * nrow(gbcs2))
+test_set = setdiff(seq_len(nrow(gbcs2)), train_set)
+
+train_gbcs <- gbcs2[train_set, ]
+
+test_gbcs <- gbcs2[test_set, ]
+```
+
+Then, we need to build tasks which will be used during the training, testing and hyperparameters tuning procedures which we will discuss later.
+```{r}
+train_task = TaskSurv$new(id = "train_gbcs", 
+                          backend = train_gbcs, 
+                          time = "survtime", 
+                          event = "censdead")
+
+test_task = TaskSurv$new(id = "test_gbcs", 
+                         backend = test_gbcs, 
+                         time = "survtime", 
+                         event = "censdead")
+```
+
 ## surv_blackboost_mlr3 
 
 The function `surv.blackboost` implements a gradient boosting algorithm that can be fitted for censored data. Similarly to other packages, blackboost implements the classical algorithm with regression trees as base learners. The peculiarity of blackboost is the possibility to change the default loss function to be optimized for the terminal regions of each tree. Blackboost allows to do so either by specifying a custom loss function or by selecting a pre-existing one under the `family` argument. Moreover, the performances of the model can be implemented further by specifying a variety of tree controls. In fact, blackboost relies on `partykit::ctree`, which offers a wide range of parameters for conditional inference trees. You can type `args(partykit::ctree_control)` for more details on the tree controls parameters.
@@ -82,8 +107,8 @@ library(mlr3proba)
 library(mlr3tuning)
 library(paradox)
 install_learners('surv.blackboost')
-learner = lrn("surv.blackboost")
-learner$param_set$ids()
+learner.bb = lrn("surv.blackboost",id="blackboost",predict_sets=c("train","test"))
+learner.bb$param_set$ids()
 ```
 ___
 
@@ -96,19 +121,19 @@ In the following we describe all the parameters needed to be tuned in order to g
 We show a subset of all the possible information given by the command `learner$param_set`: here we list id, class (which is important to know in order to correctly specify the parameter class in search spaces, see section "Hyperparameter tuning" below), lower (bound), upper (bound), levels (all possible character value for categorical parameters), default (value) and storage_type (type of parameter).
 
 ```{r eval=FALSE, include=FALSE}
-param_set<-data.frame(levels=list(rep(0,(length(learner$param_set)-1))),default=list(rep(0,(length(learner$param_set)-1))))
-for(i in 1:(length(learner$param_set)-1)){
-  param_set$levels[i] <- paste(learner$param_set$levels[[i]], collapse = ', ')
-  if(length(learner$param_set$default[names(learner$param_set$levels)[i]][[1]])!=0)
+param_set<-data.frame(levels=list(rep(0,(length(learner.bb$param_set)-1))),default=list(rep(0,(length(learner.bb$param_set)-1))))
+for(i in 1:(length(learner.bb$param_set)-1)){
+  param_set$levels[i] <- paste(learner.bb$param_set$levels[[i]], collapse = ', ')
+  if(length(learner.bb$param_set$default[names(learner.bb$param_set$levels)[i]][[1]])!=0)
   {
-    param_set$default[i] <- learner$param_set$default[names(learner$param_set$levels)[i]][[1]]
+    param_set$default[i] <- learner.bb$param_set$default[names(learner.bb$param_set$levels)[i]][[1]]
   }
   else{
     param_set$default[i] <- "NA"
   }
 }
 
-params <- data.frame(class = unname(learner$param_set$class), lower = unname(learner$param_set$lower), unname(learner$param_set$upper), levels = param_set$levels, default = param_set$default)
+params <- data.frame(class = unname(learner.bb$param_set$class), lower = unname(learner.bb$param_set$lower), unname(learner.bb$param_set$upper), levels = param_set$levels, default = param_set$default)
 params
 ```
 
@@ -124,7 +149,7 @@ In particular, we focus on the following parameters:
 In order to set the learner parameters it is necessary to use the following specification, changing "..." with the wanted value.
 
 ```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
-learner$param_set$values <- list(family = ..., 
+learner.bb$param_set$values <- list(family = ..., 
                                  mstop = ..., 
                                  nu = ..., 
                                  stopintern = ...,
@@ -139,7 +164,14 @@ If one is interested in setting other parameters we don't cover in this tutorial
 Please notice that these documentations do not refer directly to blackboost learner parameters, but they give an idea on what the parameter represents and on how to tune it correctly.
 
 ##Tuning Parameters
-Before fitting out model to the training data, we compare different specifications of the hyperparameters that we believe can improve the predictive performance of our model. We define a *tuning instance* that we will later feed to the optimization algorithm of our choice. We  specify the dataset (or a *task* according to `mlr3proba` notation) on which tuning has to be performed, the *learner* that we are using and the *search space*, which includes lower and upper bounds for out hyperparameters. Next, we need to indicate the *measure* and the *resampling* strategy according to which the performance of our model needs to be evaluated. Finally, we impose a *Terminator* or a budget representing the criterium according to which the optimization algorithm will stop.
+Before fitting out model to the training data, we compare different specifications of the hyperparameters that we believe can improve the predictive performance of our model.
+
+We first define the learner which will be optimized by the following procedure.
+```{r}
+learner.bb.opt <- lrn("surv.blackboost",id="blackboost.opt",predict_sets=c("train","test"))
+```
+
+We define a *tuning instance* that we will later feed to the optimization algorithm of our choice. We  specify the dataset (or a *task* according to `mlr3proba` notation) on which tuning has to be performed, the *learner* that we are using and the *search space*, which includes lower and upper bounds for out hyperparameters. Next, we need to indicate the *measure* and the *resampling* strategy according to which the performance of our model needs to be evaluated. Finally, we impose a *Terminator* or a budget representing the criterium according to which the optimization algorithm will stop.
 
 ```{r, results='hide'}
 search_space = ps(
@@ -176,7 +208,7 @@ Let us take a look at what our tuning instance looks like:
 instance = TuningInstanceSingleCrit$new(
   task = train_task,
   measure = measure,
-  learner = learner,
+  learner = learner.bb.opt,
   resampling = CVstrat,
   search_space = search_space,
   terminator = combo
@@ -193,10 +225,12 @@ tuner = tnr("random_search")
 tuner$optimize(instance)
 ```
 ___
-We can now store the results in the `instance` object in order to train our model with the tuned values of the parameters of interest:
+We can now access the resulting optimized parameters in the `instance` and assign them to our new (optimized) learner:
 ```{r, results='hide'}
 instance$result_learner_param_vals
-learner$param_set$values = instance$result_learner_param_vals
+
+#assigning optimized parameters
+learner.bb.opt$param_set$values = instance$result_learner_param_vals
 ```
 
 
@@ -210,7 +244,13 @@ This package exploits two main functions:
   - `benchmark()` performs the benchmarking according to the specified design and returns a <BenchmarkResult>.
 
 ___
-First, we define the triplet of objects that will make up the design.
+First, we create our benchmark model, which will be a classical Cox model.
+```{r}
+learner.cox = lrn("surv.coxph",id="cox",predict_sets=c("train","test"))
+```
+
+___
+We define the triplet of objects that will make up the design.
 ```{r}
 # learners to evaluate
 learners = c(learner.cox,learner.bb,learner.bb.opt)
