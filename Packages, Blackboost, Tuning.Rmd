@@ -232,7 +232,7 @@ search_space = ps(
   mstop = p_int(lower = 70, upper = 130),
   nu = p_dbl(lower = 0.01, upper = 0.1))
 
-CVstrat = rsmp("cv", folds = 10)
+CVstrat = rsmp("cv", folds = 5)
 
 measure = msr("surv.cindex")
 ```
