@@ -184,7 +184,7 @@ for(i in 1:(length(learner.bb$param_set)-1)){
   }
 }
 
-params <- data.frame(id =learner.bb$param_set$ids(), class = unname(learner.bb$param_set$class), lower = unname(learner.bb$param_set$lower), unname(learner.bb$param_set$upper), levels = param_set$levels, default = param_set$default)
+params <- data.frame(id =learner.bb$param_set$ids(), class = unname(learner.bb$param_set$class), lower = unname(learner.bb$param_set$lower), upper =unname(learner.bb$param_set$upper), levels = param_set$levels, default = param_set$default)
 print(as.data.table(params))
 ```
 
@@ -321,7 +321,7 @@ cv3 = rsmps("cv", folds = 3)
 
 Then, we build the benchmark design and pass it to `benchmark()` to implement the benchmarking.
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 set.seed(123)
 design <- benchmark_grid(tasks = gbcs_task,
                          learners = learners,
@@ -343,15 +343,16 @@ Finally, we can aggregate the cross-validated C-indices, and print a table displ
 
 ```{r}
 performance_tab <- benchmark$aggregate(measures)
-print(performance_tab)
+print(performance_tab[,-2])
 ```
 
 Thanks to the `mlr3viz` package it is also possible to graphically display the benchmarking results.
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 library(gridExtra)
-train_performance <- autoplot(benchmark, measure = measures[[1]])
-test_performance <- autoplot(benchmark, measure = measures[[2]])
+library(ggplot2)
+train_performance <- autoplot(benchmark, measure = measures[[1]]) + ylim(0.71,0.81)
+test_performance <- autoplot(benchmark, measure = measures[[2]]) + ylim(0.71,0.81)
 grid.arrange(train_performance,test_performance, nrow = 1)
 ```
 
