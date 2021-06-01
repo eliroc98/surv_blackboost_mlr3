@@ -23,10 +23,12 @@ The aim of this project is to provide an example of the usage of the mlr3's tool
 This method calls the blackboost function included in the mboost package.
 
 The structure of the data is the following:
+
 * observations: 686 - patients with primary node positive breast cancer.
 * variables: 16 - biological factors concerning patients and tumor severity.
   
 The Survival Analysis' dimensions are stored in these variables:
+
 * censdead: Censoring status. 1 = Death. 0 = Censored.
 * survtime: Time to death (days).
 
@@ -136,6 +138,7 @@ gbcs_task = TaskSurv$new(id = "gbcs",
 library("mlr3viz")
 autoplot(gbcs_task)
 ```
+
 ___
 
 ## Designing the learner
@@ -154,6 +157,7 @@ learner.bb = lrn("surv.blackboost", id="blackboost", predict_sets=c("train","tes
 
 Notice that, within the `lrn()` function, the optional arguments `id` and `predict_sets` are functional to the benchmarking operation.\
 `id` allows to identify the learner, while `predict_sets` provides an internal splitting to evaluate the performance on both the training and the test sets.
+
 ___
 
 ## Hyperparameters setup
@@ -165,7 +169,7 @@ In the following we describe all the parameters which could be tuned in order to
 We show a subset of all the possible information given by the command `learner$param_set`: here we list id, class (which is important to know in order to correctly specify the parameter class in search spaces, see section "Hyperparameter tuning" below), lower (bound), upper (bound), levels (all possible character values for categorical parameters), default (value) and storage_type (type of parameter).
 
 Notice that the next output is obtained by further processing of `learner.bb$param_set` output. For more details on how to get this exact output, see the raw file.
-```{r eval=FALSE, include=FALSE}
+```{r echo=FALSE}
 #here we substitute the list objects stored in levels and default with their string representation to get a better visualization
 
 param_set<-data.frame(levels=list(rep(0,(length(learner.bb$param_set)-1))),default=list(rep(0,(length(learner.bb$param_set)-1))))
@@ -181,10 +185,11 @@ for(i in 1:(length(learner.bb$param_set)-1)){
 }
 
 params <- data.frame(class = unname(learner.bb$param_set$class), lower = unname(learner.bb$param_set$lower), unname(learner.bb$param_set$upper), levels = param_set$levels, default = param_set$default)
-params
+print(params)
 ```
 
 Possible parameters are:
+
 * `family` is a symbolic description of the loss function and the corresponding risk functions to be optimized by blackboost [default: coxph].
 * `mstop` is an integer giving the number of initial boosting iterations. If mstop = 0, the offset model is returned (in our case, a tree is returned) [default: 100].
 * `nu` is a double (between 0 and 1) defining the step size or shrinkage parameter [default: 0.1].
@@ -204,6 +209,7 @@ learner.bb$param_set$values <- list(family = ...,
 ```
 
 If one is interested in setting other parameters which are not covered in this tutorial, we suggest to check these CRAN documentations:
+
 * blackboost parameters: https://cran.r-project.org/web/packages/mboost/mboost.pdf under "blackboost" section;
 * boosting parameters: https://cran.r-project.org/web/packages/mboost/mboost.pdf under "boost_control" section;
 * tree parameters: https://cran.r-project.org/web/packages/partykit/partykit.pdf under "ctree_controls" section.
@@ -232,12 +238,13 @@ search_space = ps(
   mstop = p_int(lower = 70, upper = 130),
   nu = p_dbl(lower = 0.01, upper = 0.1))
 
-CVstrat = rsmp("cv", folds = 5)
+CVstrat = rsmp("cv", folds = 10)
 
 measure = msr("surv.cindex")
 ```
 
 Regarding the `terminator` of our algorithm, `mlr3tuning` provides different options^[https://mlr3book.mlr-org.com/tuning.html]:
+
 * Terminate after a given time (TerminatorClockTime)
 * Terminate after a given amount of iterations (TerminatorEvals)
 * Terminate after a specific performance is reached (TerminatorPerfReached)
@@ -290,6 +297,7 @@ Once the new learner is configured with the optimized parameters, we are of cour
 The mlr3 framework provides a convenient way of doing so through the `mlr3benchmark` package, which compares the performance of multiple learners, on a common task and with the same training and test data.
 
 This package exploits two main functions:
+
 * `benchmark_grid()` allows to set up a customized benchmarking design, composed of a combination of `Task`, `Learner`, and `Resampling` objects.
 * `benchmark()` performs the benchmarking according to the specified design and returns a <BenchmarkResult>.
 
