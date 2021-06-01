@@ -169,7 +169,7 @@ In the following we describe all the parameters which could be tuned in order to
 We show a subset of all the possible information given by the command `learner$param_set`: here we list id, class (which is important to know in order to correctly specify the parameter class in search spaces, see section "Hyperparameter tuning" below), lower (bound), upper (bound), levels (all possible character values for categorical parameters), default (value) and storage_type (type of parameter).
 
 Notice that the next output is obtained by further processing of `learner.bb$param_set` output. For more details on how to get this exact output, see the raw file.
-```{r echo=FALSE}
+```{r echo=FALSE, warning = FALSE}
 #here we substitute the list objects stored in levels and default with their string representation to get a better visualization
 
 param_set<-data.frame(levels=list(rep(0,(length(learner.bb$param_set)-1))),default=list(rep(0,(length(learner.bb$param_set)-1))))
@@ -184,8 +184,8 @@ for(i in 1:(length(learner.bb$param_set)-1)){
   }
 }
 
-params <- data.frame(class = unname(learner.bb$param_set$class), lower = unname(learner.bb$param_set$lower), unname(learner.bb$param_set$upper), levels = param_set$levels, default = param_set$default)
-print(params)
+params <- data.frame(id =learner.bb$param_set$ids(), class = unname(learner.bb$param_set$class), lower = unname(learner.bb$param_set$lower), unname(learner.bb$param_set$upper), levels = param_set$levels, default = param_set$default)
+print(as.data.table(params))
 ```
 
 Possible parameters are:
@@ -235,10 +235,10 @@ Finally, we impose a *Terminator* - or a budget - representing the criterium acc
 
 ```{r, results='hide'}
 search_space = ps(
-  mstop = p_int(lower = 70, upper = 130),
+  mstop = p_int(lower = 80, upper = 120),
   nu = p_dbl(lower = 0.01, upper = 0.1))
 
-CVstrat = rsmp("cv", folds = 10)
+CVstrat = rsmp("cv", folds = 5)
 
 measure = msr("surv.cindex")
 ```
@@ -255,7 +255,7 @@ Here we present an example in which we let termination an open choice among Stag
 
 ```{r, results='hide'}
 combo <- trm("combo",
-              list(trm("evals", n_evals = 50),
+              list(trm("evals", n_evals = 30),
                    trm("stagnation")),
               any = TRUE)
 ```
