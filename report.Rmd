@@ -278,6 +278,9 @@ Finally, we can specify the optimization algorithm to be implemented on the `ins
 
 ```{r, results='hide'}
 tuner = tnr("random_search")
+
+future::plan(multicore=3) 
+
 tuner$optimize(instance)
 ```
 
@@ -346,7 +349,10 @@ print(performance_tab)
 Thanks to the `mlr3viz` package it is also possible to graphically display the benchmarking results.
 
 ```{r}
-autoplot(benchmark)
+library(gridExtra)
+train_performance <- autoplot(benchmark, measure = measures[[1]])
+test_performance <- autoplot(benchmark, measure = measures[[2]])
+grid.arrange(train_performance,test_performance, nrow = 1)
 ```
 
 ___
